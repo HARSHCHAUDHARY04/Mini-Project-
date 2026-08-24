@@ -1,0 +1,34 @@
+{
+  "patient": {
+    "patientId": "PT-10045",
+    "name": "John Doe",
+    "isSynthetic": true
+  },
+  "claim": {
+    "claimId": "CLM-2026-001",
+    "patientId": "PT-10045",
+    "patientName": "John Doe",
+    "payer": "ABC Health Insurance",
+    "procedure": "MRI Lumbar Spine",
+    "procedureCode": "CPT 72148",
+    "diagnosisCode": "M54.16",
+    "denialCode": "CO-50",
+    "denialReason": "Medical Necessity",
+    "amount": 2400,
+    "dateOfService": "2026-07-29",
+    "provider": "Dr. Sarah Mitchell, MD - Orthopedic Spine Center",
+    "eobExplanation": "The submitted documentation does not sufficiently establish medical necessity for the requested lumbar spine MRI under the member's plan policy.",
+    "status": "UPLOADED"
+  },
+  "policy": {
+    "policyName": "ABC Health - MRI Medical Necessity Policy",
+    "payer": "ABC Health Insurance",
+    "policyType": "Medical Necessity",
+    "version": "2026.1",
+    "sourceFile": "abc_mri_policy.txt"
+  },
+  "clinicalDocument": {
+    "title": "Patient Clinical Notes - John Doe",
+    "sourceFile": "patient_clinical_notes.txt"
+  }
+}

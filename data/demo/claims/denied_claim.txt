@@ -1,0 +1,30 @@
+EXPLANATION OF BENEFITS (EOB) — SYNTHETIC DEMO DATA
+=====================================================
+Payer: ABC Health Insurance
+Claim ID: CLM-2026-001
+Patient Name: John Doe (Synthetic)
+Patient ID: PT-10045
+Provider: Dr. Sarah Mitchell, MD — Orthopedic Spine Center
+Date of Service: 2026-07-29
+Procedure: MRI Lumbar Spine
+Procedure Code: CPT 72148
+Diagnosis Code: M54.16 (Radiculopathy, lumbar region)
+
+Billed Amount: $2,400.00
+Allowed Amount: $0.00
+Paid Amount: $0.00
+Patient Responsibility: $0.00
+
+DENIAL CODE: CO-50
+DENIAL REASON: These are non-covered services because this is not deemed a
+'medical necessity' by the payer.
+
+EOB EXPLANATION:
+"The submitted documentation does not sufficiently establish medical
+necessity for the requested lumbar spine MRI under the member's plan
+policy. Please submit additional clinical documentation, including
+duration of symptoms and conservative treatment history, if you wish to
+appeal this determination."
+
+Claim received: 2026-08-01
+Determination date: 2026-08-08

@@ -1,0 +1,35 @@
+--- PAGE 1 ---
+PATIENT CLINICAL NOTE (SYNTHETIC DEMO DATA)
+Patient: John Doe (Synthetic)
+Patient ID: PT-10045
+Provider: Dr. Sarah Mitchell, MD - Orthopedic Spine Center
+Date of Note: 2026-07-28
+
+CHIEF COMPLAINT
+Persistent lower back pain.
+
+HISTORY OF PRESENT ILLNESS
+Patient has experienced severe lower back pain for 8 weeks. Pain is described as constant, radiating intermittently into the left leg, and rated 7/10 on average. The patient completed six weeks of physical therapy (2 sessions per week) beginning 2026-06-01, focused on core stabilization and stretching. Despite consistent attendance, the patient reports no meaningful reduction in pain or function.
+
+NSAID medication (ibuprofen 600mg TID) was prescribed for four weeks starting 2026-06-05 and did not provide sufficient improvement in symptoms.
+
+ASSESSMENT
+1. Chronic lumbar radiculopathy, symptoms persistent x 8 weeks.
+2. Failure of conservative management (physical therapy and NSAIDs).
+
+PLAN
+Physician recommends MRI lumbar spine due to persistent symptoms and failure of conservative treatment.
+
+Signed: Dr. Sarah Mitchell, MD (2026-07-28)
+
+--- PAGE 2 ---
+TREATMENT HISTORY ADDENDUM
+
+2026-06-01 to 2026-07-13: Physical therapy, 12 sessions total, Riverside PT Clinic.
+Therapist notes: Minimal improvement in range of motion. Patient continues to report pain levels of 6-8/10 despite compliance with home exercise plan.
+
+2026-06-05 to 2026-07-03: Ibuprofen 600mg TID (NSAID trial).
+Follow-up note (2026-07-05): Patient reports NSAID course completed with no significant improvement in pain. Discontinued due to lack of efficacy.
+
+--- PAGE 3 ---
+2026-07-20: Follow-up visit - persistent symptoms confirmed, no new injury. Physician documents medical necessity for advanced imaging.

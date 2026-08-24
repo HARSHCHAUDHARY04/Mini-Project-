@@ -1,0 +1,75 @@
+version: "3.8"
+
+services:
+  mongodb:
+    image: mongo:6.0
+    container_name: claimassist-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - claimassist-net
+
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    container_name: claimassist-ai-service
+    ports:
+      - "8000:8000"
+    environment:
+      - LLM_PROVIDER=mock
+      - EMBEDDING_MODEL=all-MiniLM-L6-v2
+      - VECTOR_STORE=faiss
+      - VECTOR_INDEX_DIR=/app/storage/indexes
+      - PACKET_OUTPUT_DIR=/app/storage/packets
+      - ALLOWED_ORIGIN=http://localhost:5001
+    volumes:
+      - ai-storage:/app/storage
+    networks:
+      - claimassist-net
+    depends_on:
+      - mongodb
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: claimassist-server
+    ports:
+      - "5001:5001"
+    environment:
+      - PORT=5001
+      - NODE_ENV=development
+      - MONGO_URI=mongodb://mongodb:27017/claimassist
+      - JWT_SECRET=super-secret-claim-assist-key-1234
+      - AI_SERVICE_URL=http://ai-service:8000
+      - CLIENT_ORIGIN=http://localhost:5173
+    networks:
+      - claimassist-net
+    depends_on:
+      - mongodb
+      - ai-service
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: claimassist-client
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:5001/api
+    networks:
+      - claimassist-net
+    depends_on:
+      - server
+
+volumes:
+  mongo-data:
+  ai-storage:
+
+networks:
+  claimassist-net:
+    driver: bridge

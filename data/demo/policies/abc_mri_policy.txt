@@ -1,0 +1,80 @@
+ABC HEALTH INSURANCE
+MEDICAL NECESSITY POLICY — MAGNETIC RESONANCE IMAGING (MRI), LUMBAR SPINE
+Policy Version: 2026.1
+Effective Date: 2026-01-01
+Payer: ABC Health Insurance
+Policy ID: ABC-MRI-LSPINE-2026
+
+--- PAGE 1 ---
+SECTION 1 — PURPOSE
+This policy defines the medical necessity criteria that must be documented
+in the medical record for coverage of Magnetic Resonance Imaging (MRI) of
+the lumbar spine (CPT 72148) for adult members.
+
+SECTION 2 — SCOPE
+This policy applies to outpatient and office-based referrals for lumbar
+spine MRI where low back pain, radiculopathy, or suspected disc pathology
+is the primary indication.
+
+--- PAGE 2 ---
+SECTION 3 — GENERAL COVERAGE PRINCIPLES
+ABC Health Insurance covers advanced imaging services when the documented
+clinical evidence demonstrates that the requested service is reasonable
+and necessary for the diagnosis or treatment of the member's condition,
+consistent with generally accepted standards of medical practice.
+
+--- PAGE 7 ---
+SECTION 4 — MEDICAL NECESSITY CRITERIA FOR LUMBAR SPINE MRI
+
+4.1 Clinical Indication
+The member must have a documented clinical indication such as low back
+pain with or without radiculopathy, suspected disc herniation, spinal
+stenosis, or neurological deficit referable to the lumbar spine.
+
+4.2 Duration of Symptoms
+Symptoms must have persisted for at least six (6) weeks prior to the
+imaging request, unless red-flag findings are present (e.g., cauda equina
+syndrome, progressive neurological deficit, suspected malignancy or
+infection), in which case the six-week requirement is waived.
+
+--- PAGE 8 ---
+4.3 Conservative Treatment Requirement
+Prior to advanced imaging, the member must have attempted a trial of
+conservative (non-surgical) treatment appropriate to the condition. Accepted
+conservative treatments include, but are not limited to:
+  a) Physical therapy of at least four (4) weeks duration, OR
+  b) A supervised home exercise program of comparable duration, AND
+  c) A trial of pharmacologic therapy (e.g., NSAIDs or other analgesics),
+     unless contraindicated.
+
+4.4 Documented Treatment Failure
+The medical record must document that conservative treatment failed to
+produce clinically meaningful improvement, or that the member was
+intolerant to conservative treatment.
+
+--- PAGE 9 ---
+4.5 Physician Documentation
+A licensed physician must document, in the medical record, the clinical
+rationale supporting the need for advanced imaging, including how the
+results are expected to change management (e.g., referral for injection,
+surgical evaluation, or definitive diagnosis).
+
+SECTION 5 — EXCLUSIONS
+This policy does not apply to trauma-related imaging performed within 72
+hours of acute injury, which is governed by a separate emergent-imaging
+policy (ABC-MRI-TRAUMA-2026).
+
+--- PAGE 10 ---
+SECTION 6 — DOCUMENTATION CHECKLIST
+Claims submitted for lumbar spine MRI should include documentation
+addressing each of the following:
+  [ ] Duration and nature of symptoms
+  [ ] Conservative treatment(s) attempted and duration
+  [ ] Outcome of conservative treatment (response or failure)
+  [ ] Physician's clinical rationale for advanced imaging
+  [ ] Relevant physical exam / neurological findings, if available
+
+SECTION 7 — POLICY REVIEW
+This policy is reviewed annually and is subject to change. This document is
+a synthetic demonstration policy created for educational software testing
+and does not represent an actual ABC Health Insurance policy.
