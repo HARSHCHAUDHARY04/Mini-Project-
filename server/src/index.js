@@ -1,16 +1,17 @@
 require("dotenv").config();
+const crypto = require("crypto");
 const { validateEnv } = require("./config/env");
-validateEnv(); // Fail fast if required env vars are missing (#2, #23)
+validateEnv(); // Fail fast if required env vars are missing
 
 const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
-const helmet = require("helmet"); // #5 — security headers
+const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 
 const connectDB = require("./config/db");
 const { errorHandler, notFoundHandler } = require("./middleware/errorHandler");
-const { sanitizeInput } = require("./middleware/validate"); // #3 — input sanitization
+const { sanitizeInput } = require("./middleware/validate");
 
 const authRoutes = require("./routes/auth");
 const claimRoutes = require("./routes/claims");
@@ -19,33 +20,47 @@ const clinicalDocumentRoutes = require("./routes/clinicalDocuments");
 const ragRoutes = require("./routes/rag");
 const appealRoutes = require("./routes/appeals");
 const dashboardRoutes = require("./routes/dashboard");
+const auditRoutes = require("./routes/audit");
 
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-// #5 — Helmet for security headers (CSP, X-Frame-Options, etc.)
+// Request correlation ID middleware
+app.use((req, res, next) => {
+  const requestId = req.headers["x-request-id"] || crypto.randomUUID();
+  req.requestId = requestId;
+  res.setHeader("x-request-id", requestId);
+  next();
+});
+
+// Helmet for security headers
 app.use(helmet({
-  contentSecurityPolicy: false, // React injects inline styles; disable CSP for dev
+  contentSecurityPolicy: false,
   crossOriginEmbedderPolicy: false,
 }));
 
+// CORS configuration
+const allowedOrigins = process.env.NODE_ENV === "production"
+  ? [process.env.CLIENT_ORIGIN].filter(Boolean)
+  : [process.env.CLIENT_ORIGIN || "http://127.0.0.1:5173", "http://localhost:5173"];
+
 app.use(cors({
-  origin: [process.env.CLIENT_ORIGIN || "http://127.0.0.1:5173", "http://localhost:5173"],
+  origin: allowedOrigins,
   credentials: true,
 }));
 app.use(express.json({ limit: "2mb" }));
-app.use(sanitizeInput); // #3 — Strip MongoDB operators from query/body/params
+app.use(sanitizeInput);
 
-// #16 — Structured logging: JSON in production, dev format locally
+// Structured logging
 if (process.env.NODE_ENV === "production") {
   morgan.token("body-size", (req) => (req.headers["content-length"] || "-"));
-  app.use(morgan(`:remote-addr :method :url :status :response-time ms - :body-size`, { stream: process.stdout }));
+  morgan.token("request-id", (req) => req.requestId);
+  app.use(morgan(`:remote-addr [:request-id] :method :url :status :response-time ms - :body-size`, { stream: process.stdout }));
 } else {
   app.use(morgan("dev"));
 }
 
-// Basic rate limiting (spec section 30). Generous limits appropriate for a
-// college prototype, not production traffic shaping.
+// Rate limiting
 app.use(
   "/api",
   rateLimit({
@@ -59,7 +74,7 @@ app.use(
 
 app.get("/health", (req, res) => res.json({ status: "ok", service: "claimassist-server" }));
 
-// Versioned API Router (#15)
+// Versioned API Router
 const apiV1Router = express.Router();
 apiV1Router.use("/auth", authRoutes);
 apiV1Router.use("/claims", claimRoutes);
@@ -68,9 +83,10 @@ apiV1Router.use("/clinical-documents", clinicalDocumentRoutes);
 apiV1Router.use("/rag", ragRoutes);
 apiV1Router.use("/appeals", appealRoutes);
 apiV1Router.use("/dashboard", dashboardRoutes);
+apiV1Router.use("/audit", auditRoutes);
 
 app.use("/api/v1", apiV1Router);
-app.use("/api", apiV1Router); // Fallback alias for backward compatibility
+app.use("/api", apiV1Router);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
@@ -80,7 +96,6 @@ connectDB().then(() => {
     console.log(`[server] ClaimAssist AI backend running on http://localhost:${PORT}`);
   });
 
-  // #17 — Graceful shutdown: drain connections and close DB pool on SIGTERM/SIGINT
   function gracefulShutdown(signal) {
     console.log(`\n[server] ${signal} received — shutting down gracefully...`);
     server.close(() => {
@@ -90,7 +105,6 @@ connectDB().then(() => {
         process.exit(0);
       });
     });
-    // Force exit after 10s if graceful shutdown hangs
     setTimeout(() => {
       console.error("[server] Forced shutdown after timeout.");
       process.exit(1);

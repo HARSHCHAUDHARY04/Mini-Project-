@@ -6,6 +6,7 @@ const Policy = require("../models/Policy");
 const ClinicalDocument = require("../models/ClinicalDocument");
 const asyncHandler = require("../utils/asyncHandler");
 const ai = require("../services/aiServiceClient");
+const { logAudit } = require("../middleware/auditLogger");
 
 const DEMO_DIR = process.env.DEMO_DATA_DIR || path.join(__dirname, "..", "..", "..", "data", "demo");
 
@@ -46,11 +47,10 @@ const createClaim = asyncHandler(async (req, res) => {
     return res.status(409).json({ success: false, error: `Claim ${payload.claimId} already exists.` });
   }
   const claim = await Claim.create({ ...payload, uploadedBy: req.user?.id, status: "UPLOADED" });
+  await logAudit({ req, action: "CLAIM_CREATED", resource: "Claim", resourceId: claim.claimId });
   res.status(201).json({ success: true, data: claim });
 });
 
-// Handles multipart file upload (PDF/TXT/CSV/JSON), calls the AI service to
-// parse structured fields out of it, then creates the Claim record.
 const uploadClaim = asyncHandler(async (req, res) => {
   if (!req.file) {
     return res.status(422).json({ success: false, error: "No file uploaded." });
@@ -89,14 +89,33 @@ const uploadClaim = asyncHandler(async (req, res) => {
     uploadedBy: req.user?.id,
   });
 
+  await logAudit({ req, action: "CLAIM_UPLOADED", resource: "Claim", resourceId: claim.claimId, details: { fileName: req.file.filename } });
   res.status(201).json({ success: true, data: { claim, extraction: parsed } });
 });
 
 const listClaims = asyncHandler(async (req, res) => {
-  const { status, appealability, page = 1, limit = 20 } = req.query;
-  const filter = {};
+  const { status, appealability, q, startDate, endDate, page = 1, limit = 20 } = req.query;
+  const filter = { deletedAt: null };
+
   if (status) filter.status = status;
   if (appealability) filter.appealabilityClassification = appealability;
+
+  if (q) {
+    const searchRegex = new RegExp(q, "i");
+    filter.$or = [
+      { claimId: searchRegex },
+      { patientName: searchRegex },
+      { payer: searchRegex },
+      { procedure: searchRegex },
+      { denialCode: searchRegex },
+    ];
+  }
+
+  if (startDate || endDate) {
+    filter.createdAt = {};
+    if (startDate) filter.createdAt.$gte = new Date(startDate);
+    if (endDate) filter.createdAt.$lte = new Date(endDate);
+  }
 
   const pageNum = Math.max(1, parseInt(page, 10));
   const limitNum = Math.max(1, Math.min(100, parseInt(limit, 10)));
@@ -104,7 +123,7 @@ const listClaims = asyncHandler(async (req, res) => {
 
   const [claims, total] = await Promise.all([
     Claim.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limitNum),
-    Claim.countDocuments(filter)
+    Claim.countDocuments(filter),
   ]);
 
   res.json({
@@ -114,13 +133,13 @@ const listClaims = asyncHandler(async (req, res) => {
       total,
       page: pageNum,
       limit: limitNum,
-      pages: Math.ceil(total / limitNum)
-    }
+      pages: Math.ceil(total / limitNum),
+    },
   });
 });
 
 const getClaim = asyncHandler(async (req, res) => {
-  const claim = await Claim.findOne({ claimId: req.params.id });
+  const claim = await Claim.findOne({ claimId: req.params.id, deletedAt: null });
   if (!claim) return res.status(404).json({ success: false, error: "Claim not found." });
   res.json({ success: true, data: claim });
 });
@@ -128,22 +147,27 @@ const getClaim = asyncHandler(async (req, res) => {
 const updateClaim = asyncHandler(async (req, res) => {
   const payload = pick(req.body, CLAIM_UPDATE_FIELDS);
   const claim = await Claim.findOneAndUpdate(
-    { claimId: req.params.id },
+    { claimId: req.params.id, deletedAt: null },
     payload,
     { new: true, runValidators: true, context: "query" }
   );
   if (!claim) return res.status(404).json({ success: false, error: "Claim not found." });
+  await logAudit({ req, action: "CLAIM_UPDATED", resource: "Claim", resourceId: claim.claimId, details: payload });
   res.json({ success: true, data: claim });
 });
 
+// Soft delete
 const deleteClaim = asyncHandler(async (req, res) => {
-  const claim = await Claim.findOneAndDelete({ claimId: req.params.id });
+  const claim = await Claim.findOneAndUpdate(
+    { claimId: req.params.id, deletedAt: null },
+    { deletedAt: new Date() },
+    { new: true }
+  );
   if (!claim) return res.status(404).json({ success: false, error: "Claim not found." });
+  await logAudit({ req, action: "CLAIM_SOFT_DELETED", resource: "Claim", resourceId: claim.claimId });
   res.json({ success: true, data: { deleted: true } });
 });
 
-// Loads the bundled synthetic demo case (spec section 25) so the full
-// workflow can be demonstrated without manually uploading files.
 const loadDemoCase = asyncHandler(async (req, res) => {
   const bundlePath = path.join(DEMO_DIR, "demo_case.json");
   if (!fs.existsSync(bundlePath)) {
@@ -151,14 +175,12 @@ const loadDemoCase = asyncHandler(async (req, res) => {
   }
   const bundle = JSON.parse(fs.readFileSync(bundlePath, "utf-8"));
 
-  // 1. Upsert Patient
   await Patient.findOneAndUpdate(
     { patientId: bundle.patient.patientId },
     bundle.patient,
     { upsert: true, new: true }
   );
 
-  // 2. Index the demo policy from raw text file on the server
   const policyId = `POL-${bundle.claim.claimId}`;
   const policyText = fs.readFileSync(path.join(DEMO_DIR, "policies", bundle.policy.sourceFile), "utf-8");
   const indexResult = await ai.indexPolicy({
@@ -183,7 +205,6 @@ const loadDemoCase = asyncHandler(async (req, res) => {
     { upsert: true }
   );
 
-  // 3. Upsert clinical document details
   await ClinicalDocument.findOneAndUpdate(
     { claimId: bundle.claim.claimId },
     {
@@ -196,11 +217,15 @@ const loadDemoCase = asyncHandler(async (req, res) => {
     { upsert: true }
   );
 
-  // 4. Create/Upsert Claim
   let claim = await Claim.findOne({ claimId: bundle.claim.claimId });
   if (!claim) {
     claim = await Claim.create({ ...bundle.claim, uploadedBy: req.user?.id });
+  } else if (claim.deletedAt) {
+    claim.deletedAt = null;
+    await claim.save();
   }
+
+  await logAudit({ req, action: "DEMO_CASE_LOADED", resource: "Claim", resourceId: claim.claimId });
 
   res.json({
     success: true,

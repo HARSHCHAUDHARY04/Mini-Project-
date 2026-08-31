@@ -2,9 +2,13 @@ import logging
 from fastapi import APIRouter, HTTPException
 
 from app.models.schemas import (
-    RetrievePolicyRequest, ExtractRequirementsRequest, MatchEvidenceRequest, ScoreRequest,
+    RetrievePolicyRequest, MultiPolicyRetrieveRequest, ComparePoliciesRequest,
+    EvaluateRetrievalRequest, ExtractRequirementsRequest, MatchEvidenceRequest, ScoreRequest,
 )
-from app.rag.rag_engine import retrieve_policy_sections, PolicyNotIndexedError
+from app.rag.rag_engine import (
+    retrieve_policy_sections, retrieve_multi_policy_sections, compare_policies,
+    evaluate_retrieval_quality, PolicyNotIndexedError,
+)
 from app.extraction.requirement_extractor import extract_requirements
 from app.services.requirement_matcher import match_all_requirements
 from app.services.scoring import compute_appealability_score
@@ -28,6 +32,38 @@ def retrieve_policy(req: RetrievePolicyRequest):
 @router.post("/rag/search")
 def rag_search(req: RetrievePolicyRequest):
     return retrieve_policy(req)
+
+
+@router.post("/retrieve-multi-policy")
+def retrieve_multi_policy(req: MultiPolicyRetrieveRequest):
+    try:
+        results = retrieve_multi_policy_sections(req.policyIds, req.query, req.topK)
+        return {"success": True, "data": results}
+    except Exception as exc:
+        logger.exception("retrieve_multi_policy failed")
+        raise HTTPException(status_code=500, detail=f"Multi-policy retrieval failed: {exc}")
+
+
+@router.post("/compare-policies")
+def compare_policies_route(req: ComparePoliciesRequest):
+    try:
+        results = compare_policies(req.policyIds, req.query)
+        return {"success": True, "data": results}
+    except Exception as exc:
+        logger.exception("compare_policies failed")
+        raise HTTPException(status_code=500, detail=f"Policy comparison failed: {exc}")
+
+
+@router.post("/evaluate-retrieval")
+def evaluate_retrieval(req: EvaluateRetrievalRequest):
+    try:
+        metrics = evaluate_retrieval_quality(req.policyId, req.query, req.topK)
+        return {"success": True, "data": metrics}
+    except PolicyNotIndexedError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except Exception as exc:
+        logger.exception("evaluate_retrieval failed")
+        raise HTTPException(status_code=500, detail=f"Retrieval evaluation failed: {exc}")
 
 
 @router.post("/extract-requirements")

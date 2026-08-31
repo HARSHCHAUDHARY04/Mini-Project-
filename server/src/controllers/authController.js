@@ -4,12 +4,16 @@ const crypto = require("crypto");
 const { OAuth2Client } = require("google-auth-library");
 const User = require("../models/User");
 const asyncHandler = require("../utils/asyncHandler");
+const { logAudit } = require("../middleware/auditLogger");
 
 const googleClient = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
   process.env.GOOGLE_CALLBACK_URL
 );
+
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCK_TIME_MS = 15 * 60 * 1000; // 15 minutes
 
 function signToken(user) {
   return jwt.sign(
@@ -36,9 +40,10 @@ const register = asyncHandler(async (req, res) => {
     role: role === "reviewer" ? "reviewer" : "admin",
   });
   const token = signToken(user);
+  await logAudit({ req: { ...req, user: { id: user._id, name: user.name } }, action: "USER_REGISTER", resource: "User", resourceId: user._id.toString() });
   res.status(201).json({
     success: true,
-    data: { token, user: { id: user._id, name: user.name, email: user.email, role: user.role } },
+    data: { token, user: { id: user._id, name: user.name, email: user.email, role: user.role, avatar: user.avatar } },
   });
 });
 
@@ -51,14 +56,45 @@ const login = asyncHandler(async (req, res) => {
   if (!user) {
     return res.status(401).json({ success: false, error: "Invalid email or password." });
   }
+
+  // Account lockout check
+  if (user.isLocked()) {
+    const minutesLeft = Math.ceil((user.lockUntil - Date.now()) / (60 * 1000));
+    await logAudit({ req, action: "LOGIN_BLOCKED_LOCKED", resource: "User", resourceId: user._id.toString() });
+    return res.status(423).json({
+      success: false,
+      error: `Account is temporarily locked due to multiple failed login attempts. Try again in ${minutesLeft} minute(s).`,
+    });
+  }
+
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
+    user.loginAttempts = (user.loginAttempts || 0) + 1;
+    if (user.loginAttempts >= MAX_LOGIN_ATTEMPTS) {
+      user.lockUntil = new Date(Date.now() + LOCK_TIME_MS);
+      await user.save();
+      await logAudit({ req, action: "ACCOUNT_LOCKED", resource: "User", resourceId: user._id.toString() });
+      return res.status(423).json({
+        success: false,
+        error: "Account locked due to 5 consecutive failed login attempts. Please wait 15 minutes.",
+      });
+    }
+    await user.save();
+    await logAudit({ req, action: "LOGIN_FAILED", resource: "User", resourceId: user._id.toString() });
     return res.status(401).json({ success: false, error: "Invalid email or password." });
   }
+
+  // Reset login attempts on success
+  user.loginAttempts = 0;
+  user.lockUntil = null;
+  await user.save();
+
   const token = signToken(user);
+  await logAudit({ req: { ...req, user: { id: user._id, name: user.name } }, action: "USER_LOGIN", resource: "User", resourceId: user._id.toString() });
+
   res.json({
     success: true,
-    data: { token, user: { id: user._id, name: user.name, email: user.email, role: user.role } },
+    data: { token, user: { id: user._id, name: user.name, email: user.email, role: user.role, avatar: user.avatar } },
   });
 });
 
@@ -68,6 +104,23 @@ const me = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, error: "User not found." });
   }
   res.json({ success: true, data: user });
+});
+
+const updateProfile = asyncHandler(async (req, res) => {
+  const { name, avatar } = req.body;
+  const user = await User.findById(req.user.id);
+  if (!user) {
+    return res.status(404).json({ success: false, error: "User not found." });
+  }
+  if (name) user.name = name;
+  if (avatar !== undefined) user.avatar = avatar;
+  await user.save();
+
+  await logAudit({ req, action: "PROFILE_UPDATED", resource: "User", resourceId: user._id.toString() });
+  res.json({
+    success: true,
+    data: { id: user._id, name: user.name, email: user.email, role: user.role, avatar: user.avatar },
+  });
 });
 
 const googleStart = (req, res) => {
@@ -138,7 +191,9 @@ const changePassword = asyncHandler(async (req, res) => {
   user.passwordHash = await bcrypt.hash(newPassword, 10);
   await user.save();
 
+  await logAudit({ req, action: "PASSWORD_CHANGED", resource: "User", resourceId: user._id.toString() });
+
   res.json({ success: true, message: "Password updated successfully." });
 });
 
-module.exports = { register, login, me, googleStart, googleCallback, changePassword };
+module.exports = { register, login, me, updateProfile, googleStart, googleCallback, changePassword };

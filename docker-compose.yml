@@ -10,6 +10,11 @@ services:
       - mongo-data:/data/db
     networks:
       - claimassist-net
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   ai-service:
     build:
@@ -19,7 +24,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - LLM_PROVIDER=mock
+      - LLM_PROVIDER=${LLM_PROVIDER:-mock}
       - EMBEDDING_MODEL=all-MiniLM-L6-v2
       - VECTOR_STORE=faiss
       - VECTOR_INDEX_DIR=/app/storage/indexes
@@ -30,7 +35,13 @@ services:
     networks:
       - claimassist-net
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
 
   server:
     build:
@@ -41,16 +52,23 @@ services:
       - "5001:5001"
     environment:
       - PORT=5001
-      - NODE_ENV=development
+      - NODE_ENV=${NODE_ENV:-development}
       - MONGO_URI=mongodb://mongodb:27017/claimassist
-      - JWT_SECRET=super-secret-claim-assist-key-1234
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-claim-assist-key-change-in-prod}
       - AI_SERVICE_URL=http://ai-service:8000
-      - CLIENT_ORIGIN=http://localhost:5173
+      - CLIENT_ORIGIN=${CLIENT_ORIGIN:-http://localhost:5173}
     networks:
       - claimassist-net
     depends_on:
-      - mongodb
-      - ai-service
+      mongodb:
+        condition: service_healthy
+      ai-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   client:
     build:
@@ -60,11 +78,12 @@ services:
     ports:
       - "5173:5173"
     environment:
-      - VITE_API_BASE_URL=http://localhost:5001/api
+      - VITE_API_BASE_URL=http://localhost:5001/api/v1
     networks:
       - claimassist-net
     depends_on:
-      - server
+      server:
+        condition: service_healthy
 
 volumes:
   mongo-data:

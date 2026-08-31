@@ -4,11 +4,12 @@ const Analysis = require("../models/Analysis");
 const Appeal = require("../models/Appeal");
 const asyncHandler = require("../utils/asyncHandler");
 const ai = require("../services/aiServiceClient");
+const { logAudit } = require("../middleware/auditLogger");
 
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || "http://127.0.0.1:8000";
 
 const generateAppeal = asyncHandler(async (req, res) => {
-  const claim = await Claim.findOne({ claimId: req.params.id });
+  const claim = await Claim.findOne({ claimId: req.params.id, deletedAt: null });
   if (!claim) return res.status(404).json({ success: false, error: "Claim not found." });
 
   const analysis = await Analysis.findOne({ claimId: claim.claimId });
@@ -24,6 +25,12 @@ const generateAppeal = asyncHandler(async (req, res) => {
     appealability: analysis.appealability,
   });
 
+  let existing = await Appeal.findOne({ claimId: claim.claimId });
+  let versions = existing?.versions || [];
+  if (existing?.content) {
+    versions.push({ content: existing.content, editedAt: new Date(), editedBy: req.user?.id });
+  }
+
   const appeal = await Appeal.findOneAndUpdate(
     { claimId: claim.claimId },
     {
@@ -34,6 +41,7 @@ const generateAppeal = asyncHandler(async (req, res) => {
       missingEvidence: draft.missingEvidence,
       complianceScore: analysis.appealability.score,
       status: "DRAFT",
+      versions,
     },
     { upsert: true, new: true }
   );
@@ -41,6 +49,7 @@ const generateAppeal = asyncHandler(async (req, res) => {
   claim.status = "APPEAL_GENERATED";
   await claim.save();
 
+  await logAudit({ req, action: "APPEAL_GENERATED", resource: "Appeal", resourceId: appeal._id.toString(), details: { claimId: claim.claimId } });
   res.status(201).json({ success: true, data: appeal });
 });
 
@@ -56,7 +65,7 @@ const listAppeals = asyncHandler(async (req, res) => {
 
   const [appeals, total] = await Promise.all([
     Appeal.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limitNum),
-    Appeal.countDocuments(filter)
+    Appeal.countDocuments(filter),
   ]);
 
   res.json({
@@ -66,8 +75,8 @@ const listAppeals = asyncHandler(async (req, res) => {
       total,
       page: pageNum,
       limit: limitNum,
-      pages: Math.ceil(total / limitNum)
-    }
+      pages: Math.ceil(total / limitNum),
+    },
   });
 });
 
@@ -77,15 +86,22 @@ const getAppeal = asyncHandler(async (req, res) => {
   res.json({ success: true, data: appeal });
 });
 
-// Manual edits from the split-screen review page (spec section 17: [Edit]).
 const updateAppeal = asyncHandler(async (req, res) => {
   const { content } = req.body;
-  const appeal = await Appeal.findByIdAndUpdate(
-    req.params.id,
-    { ...(content ? { content } : {}) },
-    { new: true }
-  );
+  if (content && content.length > 50000) {
+    return res.status(422).json({ success: false, error: "Appeal content exceeds maximum limit of 50,000 characters." });
+  }
+
+  const appeal = await Appeal.findById(req.params.id);
   if (!appeal) return res.status(404).json({ success: false, error: "Appeal not found." });
+
+  if (content && content !== appeal.content) {
+    appeal.versions.push({ content: appeal.content, editedAt: new Date(), editedBy: req.user?.id });
+    appeal.content = content;
+    await appeal.save();
+  }
+
+  await logAudit({ req, action: "APPEAL_UPDATED", resource: "Appeal", resourceId: appeal._id.toString() });
   res.json({ success: true, data: appeal });
 });
 
@@ -102,10 +118,10 @@ const approveAppeal = asyncHandler(async (req, res) => {
 
   await Claim.findOneAndUpdate({ claimId: appeal.claimId }, { status });
 
+  await logAudit({ req, action: `APPEAL_${status}`, resource: "Appeal", resourceId: appeal._id.toString() });
   res.json({ success: true, data: appeal });
 });
 
-// Generates (if needed) and streams the appeal packet PDF back to the client.
 const downloadPacket = asyncHandler(async (req, res) => {
   const appeal = await Appeal.findById(req.params.id);
   if (!appeal) return res.status(404).json({ success: false, error: "Appeal not found." });
@@ -129,6 +145,8 @@ const downloadPacket = asyncHandler(async (req, res) => {
 
   appeal.pdfFileName = packet.fileName;
   await appeal.save();
+
+  await logAudit({ req, action: "APPEAL_PACKET_DOWNLOADED", resource: "Appeal", resourceId: appeal._id.toString() });
 
   const fileResponse = await axios.get(`${AI_SERVICE_URL}/ai/packet/${packet.fileName}`, {
     responseType: "stream",

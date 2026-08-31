@@ -28,6 +28,23 @@ class RetrievePolicyRequest(BaseModel):
     topK: int = 5
 
 
+class MultiPolicyRetrieveRequest(BaseModel):
+    policyIds: List[str]
+    query: str
+    topK: int = 5
+
+
+class ComparePoliciesRequest(BaseModel):
+    policyIds: List[str]
+    query: str
+
+
+class EvaluateRetrievalRequest(BaseModel):
+    policyId: str
+    query: str
+    topK: int = 5
+
+
 class ExtractRequirementsRequest(BaseModel):
     policyChunks: List[Dict[str, Any]]
 

@@ -3,10 +3,13 @@ DocumentProcessor: extracts text from uploaded PDF/TXT files and normalizes
 it into a single string with `--- PAGE N ---` markers so downstream
 extractors (clinical_extractor, policy_indexer) can attribute every finding
 back to a page number for citation purposes.
+
+Includes OCR fallback for scanned or image-only PDF documents.
 """
 
 import os
 import logging
+import io
 from typing import Optional
 
 logger = logging.getLogger("claimassist.docproc")
@@ -14,6 +17,21 @@ logger = logging.getLogger("claimassist.docproc")
 
 class DocumentProcessingError(Exception):
     pass
+
+
+def _perform_ocr_on_page(page) -> str:
+    """Render page as pixmap image and run Tesseract OCR if pytesseract is available."""
+    try:
+        from PIL import Image
+        import pytesseract
+
+        pix = page.get_pixmap(dpi=150)
+        img = Image.open(io.BytesIO(pix.tobytes("png")))
+        ocr_text = pytesseract.image_to_string(img)
+        return ocr_text.strip()
+    except Exception as err:
+        logger.warning("OCR processing skipped or unavailable: %s", err)
+        return ""
 
 
 def extract_text_from_pdf(file_path: str) -> str:
@@ -37,15 +55,24 @@ def extract_text_from_pdf(file_path: str) -> str:
 
     pages_text = []
     for i, page in enumerate(doc, start=1):
-        text = page.get_text("text")
+        text = page.get_text("text").strip()
+
+        # Fallback to OCR if PyMuPDF returns no direct text layer (scanned page)
+        if not text:
+            logger.info("Page %d has no text layer, running OCR fallback...", i)
+            ocr_text = _perform_ocr_on_page(page)
+            if ocr_text:
+                text = f"[OCR Extracted]\n{ocr_text}"
+
         pages_text.append(f"--- PAGE {i} ---\n{text}")
     doc.close()
 
     full_text = "\n\n".join(pages_text)
-    if not full_text.strip().replace("---", "").replace("PAGE", ""):
+    cleaned_content = full_text.replace("---", "").replace("PAGE", "").replace("[OCR Extracted]", "").strip()
+    if not cleaned_content:
         raise DocumentProcessingError(
-            "Text extraction produced no content. The PDF may be scanned/image-only; "
-            "OCR is not supported in this prototype."
+            "Text extraction produced no content. The PDF may be scanned/image-only "
+            "and Tesseract OCR is not installed on the system."
         )
     return full_text
 

@@ -11,7 +11,17 @@ import Appeals from "./pages/Appeals";
 import AppealReview from "./pages/AppealReview";
 import Analytics from "./pages/Analytics";
 import Settings from "./pages/Settings";
+import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ErrorBoundary from "./components/ErrorBoundary";
+
+function Protected({ children }) {
+  return (
+    <ErrorBoundary>
+      <ProtectedRoute>{children}</ProtectedRoute>
+    </ErrorBoundary>
+  );
+}
 
 export default function App() {
   return (
@@ -19,17 +29,17 @@ export default function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
 
-      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="/claims" element={<ProtectedRoute><Claims /></ProtectedRoute>} />
-      <Route path="/claims/:id" element={<ProtectedRoute><ClaimDetail /></ProtectedRoute>} />
-      <Route path="/policies" element={<ProtectedRoute><Policies /></ProtectedRoute>} />
-      <Route path="/clinical-documents" element={<ProtectedRoute><ClinicalDocuments /></ProtectedRoute>} />
-      <Route path="/appeals" element={<ProtectedRoute><Appeals /></ProtectedRoute>} />
-      <Route path="/appeals/:claimId/review" element={<ProtectedRoute><AppealReview /></ProtectedRoute>} />
-      <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
-      <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+      <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />
+      <Route path="/claims" element={<Protected><Claims /></Protected>} />
+      <Route path="/claims/:id" element={<Protected><ClaimDetail /></Protected>} />
+      <Route path="/policies" element={<Protected><Policies /></Protected>} />
+      <Route path="/clinical-documents" element={<Protected><ClinicalDocuments /></Protected>} />
+      <Route path="/appeals" element={<Protected><Appeals /></Protected>} />
+      <Route path="/appeals/:claimId/review" element={<Protected><AppealReview /></Protected>} />
+      <Route path="/analytics" element={<Protected><Analytics /></Protected>} />
+      <Route path="/settings" element={<Protected><Settings /></Protected>} />
 
-      <Route path="*" element={<Landing />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }

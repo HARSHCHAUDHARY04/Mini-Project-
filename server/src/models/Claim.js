@@ -32,6 +32,7 @@ const ClaimSchema = new mongoose.Schema(
     appealabilityClassification: { type: String, default: null },
     sourceFile: { type: String },
     uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    deletedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

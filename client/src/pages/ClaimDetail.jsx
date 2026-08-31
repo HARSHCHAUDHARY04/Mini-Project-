@@ -1,15 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, FileSearch, ArrowLeft, AlertCircle, ShieldQuestion } from "lucide-react";
+import { Sparkles, FileSearch, ArrowLeft, AlertCircle } from "lucide-react";
 import DashboardLayout from "../layouts/DashboardLayout";
 import StatusBadge from "../components/StatusBadge";
-import ScoreGauge from "../components/ScoreGauge";
+import AnalysisProgress from "../components/AnalysisProgress";
 import { SkeletonCard } from "../components/Skeletons";
 import api, { errorMessage } from "../services/api";
 import { useToast } from "../context/ToastContext";
 
-// Import modular tab components (#24)
 import OverviewTab from "../components/claim-tabs/OverviewTab";
 import DenialAnalysisTab from "../components/claim-tabs/DenialAnalysisTab";
 import PolicyEvidenceTab from "../components/claim-tabs/PolicyEvidenceTab";
@@ -121,14 +120,14 @@ export default function ClaimDetail() {
   if (!claim) {
     return (
       <DashboardLayout title="Claim Detail">
-        {error ? <p className="text-red-600 text-sm">{error}</p> : <div className="grid sm:grid-cols-2 gap-4"><SkeletonCard lines={4} /><SkeletonCard lines={4} /></div>}
+        {error ? <p className="text-red-600 dark:text-red-400 text-sm">{error}</p> : <div className="grid sm:grid-cols-2 gap-4"><SkeletonCard lines={4} /><SkeletonCard lines={4} /></div>}
       </DashboardLayout>
     );
   }
 
   return (
     <DashboardLayout title={`Claim ${claim.claimId}`}>
-      <button onClick={() => navigate("/claims")} className="flex items-center gap-1.5 text-sm text-ink-500 hover:text-ink-900 mb-4 transition-colors">
+      <button onClick={() => navigate("/claims")} className="flex items-center gap-1.5 text-sm text-ink-500 dark:text-slate-400 hover:text-ink-900 dark:hover:text-white mb-4 transition-colors">
         <ArrowLeft size={15} /> Back to Claims
       </button>
 
@@ -156,12 +155,14 @@ export default function ClaimDetail() {
       </div>
 
       {error && (
-        <div className="mb-5 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2 flex items-start gap-2">
+        <div className="mb-5 text-sm text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg px-3 py-2 flex items-start gap-2">
           <AlertCircle size={15} className="mt-0.5 shrink-0" /> {error}
         </div>
       )}
 
-      <div className="flex gap-1 border-b border-surface-border mb-6 overflow-x-auto" role="tablist" aria-label="Claim Details Tabs">
+      <AnalysisProgress active={analyzing} />
+
+      <div className="flex gap-1 border-b border-surface-border dark:border-slate-800 mb-6 overflow-x-auto" role="tablist" aria-label="Claim Details Tabs">
         {TABS.map((t) => (
           <button
             key={t}
@@ -171,12 +172,12 @@ export default function ClaimDetail() {
             aria-controls={`panel-${t.toLowerCase().replace(/\s+/g, "-")}`}
             onClick={() => setTab(t)}
             className={`relative px-3.5 py-2.5 text-sm font-medium whitespace-nowrap transition-colors ${
-              tab === t ? "text-brand-700" : "text-ink-500 hover:text-ink-900"
+              tab === t ? "text-brand-700 dark:text-brand-400" : "text-ink-500 dark:text-slate-400 hover:text-ink-900 dark:hover:text-white"
             }`}
           >
             {t}
             {tab === t && (
-              <motion.div layoutId="claim-tab-underline" className="absolute left-0 right-0 -bottom-px h-0.5 bg-brand-600" transition={{ type: "spring", stiffness: 500, damping: 35 }} />
+              <motion.div layoutId="claim-tab-underline" className="absolute left-0 right-0 -bottom-px h-0.5 bg-brand-600 dark:bg-brand-400" transition={{ type: "spring", stiffness: 500, damping: 35 }} />
             )}
           </button>
         ))}
@@ -206,5 +207,3 @@ export default function ClaimDetail() {
     </DashboardLayout>
   );
 }
-
-

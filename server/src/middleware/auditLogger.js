@@ -1,0 +1,23 @@
+const AuditLog = require("../models/AuditLog");
+
+async function logAudit({ req, action, resource, resourceId, details }) {
+  try {
+    const userId = req?.user?.id || null;
+    const userName = req?.user?.name || "System";
+    const ipAddress = req?.ip || req?.headers["x-forwarded-for"] || req?.socket?.remoteAddress || "";
+
+    await AuditLog.create({
+      userId,
+      userName,
+      action,
+      resource,
+      resourceId,
+      details,
+      ipAddress,
+    });
+  } catch (err) {
+    console.error("[AuditLog Error]", err.message);
+  }
+}
+
+module.exports = { logAudit };
