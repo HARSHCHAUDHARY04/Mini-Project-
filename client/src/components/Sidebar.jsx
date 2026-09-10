@@ -1,9 +1,10 @@
 import React from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, FileText, BookOpen, Stethoscope, FileCheck2, BarChart3, Settings, ShieldCheck, X,
+  LayoutDashboard, FileText, BookOpen, Stethoscope, FileCheck2, BarChart3, Settings, ShieldCheck, X, Shield, Users,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "../context/AuthContext";
 
 const NAV_ITEMS = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -12,11 +13,16 @@ const NAV_ITEMS = [
   { to: "/clinical-documents", label: "Clinical Documents", icon: Stethoscope },
   { to: "/appeals", label: "Appeals", icon: FileCheck2 },
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
+  { to: "/users", label: "Users", icon: Users, adminOnly: true },
+  { to: "/audit-logs", label: "Audit Logs", icon: Shield, adminOnly: true },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 
 export default function Sidebar({ open, onClose }) {
   const { pathname } = useLocation();
+  const { user } = useAuth();
+
+  const filteredNavItems = NAV_ITEMS.filter((item) => !item.adminOnly || user?.role === "admin");
 
   const sidebarContent = (
     <>
@@ -33,7 +39,7 @@ export default function Sidebar({ open, onClose }) {
         </button>
       </div>
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {NAV_ITEMS.map(({ to, label, icon: Icon }) => {
+        {filteredNavItems.map(({ to, label, icon: Icon }) => {
           const isActive = pathname === to || pathname.startsWith(to + "/");
           return (
             <NavLink

@@ -11,6 +11,8 @@ import Appeals from "./pages/Appeals";
 import AppealReview from "./pages/AppealReview";
 import Analytics from "./pages/Analytics";
 import Settings from "./pages/Settings";
+import AuditLogs from "./pages/AuditLogs";
+import UserManagement from "./pages/UserManagement";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -37,9 +39,12 @@ export default function App() {
       <Route path="/appeals" element={<Protected><Appeals /></Protected>} />
       <Route path="/appeals/:claimId/review" element={<Protected><AppealReview /></Protected>} />
       <Route path="/analytics" element={<Protected><Analytics /></Protected>} />
+      <Route path="/users" element={<Protected><UserManagement /></Protected>} />
+      <Route path="/audit-logs" element={<Protected><AuditLogs /></Protected>} />
       <Route path="/settings" element={<Protected><Settings /></Protected>} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }
+

@@ -21,6 +21,8 @@ const ragRoutes = require("./routes/rag");
 const appealRoutes = require("./routes/appeals");
 const dashboardRoutes = require("./routes/dashboard");
 const auditRoutes = require("./routes/audit");
+const userRoutes = require("./routes/users");
+const notificationRoutes = require("./routes/notifications");
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -84,6 +86,8 @@ apiV1Router.use("/rag", ragRoutes);
 apiV1Router.use("/appeals", appealRoutes);
 apiV1Router.use("/dashboard", dashboardRoutes);
 apiV1Router.use("/audit", auditRoutes);
+apiV1Router.use("/users", userRoutes);
+apiV1Router.use("/notifications", notificationRoutes);
 
 app.use("/api/v1", apiV1Router);
 app.use("/api", apiV1Router);

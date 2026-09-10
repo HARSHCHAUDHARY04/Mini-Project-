@@ -236,6 +236,53 @@ const loadDemoCase = asyncHandler(async (req, res) => {
   });
 });
 
+const exportClaimsCSV = asyncHandler(async (req, res) => {
+  const { status, payer, search } = req.query;
+  const filter = { deletedAt: null };
+  if (status) filter.status = status;
+  if (payer) filter.payer = new RegExp(payer, "i");
+  if (search) {
+    const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    filter.$or = [
+      { claimId: new RegExp(escaped, "i") },
+      { patientName: new RegExp(escaped, "i") },
+      { procedure: new RegExp(escaped, "i") },
+      { denialCode: new RegExp(escaped, "i") },
+    ];
+  }
+
+  const claims = await Claim.find(filter).sort({ createdAt: -1 });
+
+  const escapeCSV = (val) => {
+    if (val === null || val === undefined) return '""';
+    const str = String(val).replace(/"/g, '""');
+    return `"${str}"`;
+  };
+
+  const headers = ["Claim ID", "Patient ID", "Patient Name", "Payer", "Procedure", "Denial Code", "Amount", "Status", "Appeal Score", "Date of Service", "Created At"];
+  const rows = claims.map((c) => [
+    escapeCSV(c.claimId),
+    escapeCSV(c.patientId || ""),
+    escapeCSV(c.patientName || ""),
+    escapeCSV(c.payer || ""),
+    escapeCSV(c.procedure || ""),
+    escapeCSV(c.denialCode || ""),
+    escapeCSV(c.amount || 0),
+    escapeCSV(c.status || ""),
+    escapeCSV(c.appealabilityScore !== null ? c.appealabilityScore : ""),
+    escapeCSV(c.dateOfService || ""),
+    escapeCSV(c.createdAt ? new Date(c.createdAt).toISOString() : ""),
+  ]);
+
+  const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+
+  await logAudit({ req, action: "CLAIMS_EXPORTED_CSV", resource: "Claim", details: { count: claims.length } });
+
+  res.setHeader("Content-Type", "text/csv");
+  res.setHeader("Content-Disposition", 'attachment; filename="claims-export.csv"');
+  res.status(200).send(csvContent);
+});
+
 module.exports = {
   createClaim,
   uploadClaim,
@@ -244,4 +291,5 @@ module.exports = {
   updateClaim,
   deleteClaim,
   loadDemoCase,
+  exportClaimsCSV,
 };

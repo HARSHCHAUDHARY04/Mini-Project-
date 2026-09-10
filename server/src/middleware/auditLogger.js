@@ -1,10 +1,12 @@
+const mongoose = require("mongoose");
 const AuditLog = require("../models/AuditLog");
 
 async function logAudit({ req, action, resource, resourceId, details }) {
   try {
-    const userId = req?.user?.id || null;
+    const rawUserId = req?.user?.id;
+    const userId = rawUserId && mongoose.isValidObjectId(rawUserId) ? rawUserId : null;
     const userName = req?.user?.name || "System";
-    const ipAddress = req?.ip || req?.headers["x-forwarded-for"] || req?.socket?.remoteAddress || "";
+    const ipAddress = req?.ip || req?.headers?.["x-forwarded-for"] || req?.socket?.remoteAddress || "";
 
     await AuditLog.create({
       userId,
@@ -21,3 +23,4 @@ async function logAudit({ req, action, resource, resourceId, details }) {
 }
 
 module.exports = { logAudit };
+

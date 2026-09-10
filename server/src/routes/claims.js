@@ -1,6 +1,6 @@
 const express = require("express");
 const {
-  createClaim, uploadClaim, listClaims, getClaim, updateClaim, deleteClaim, loadDemoCase,
+  createClaim, uploadClaim, listClaims, getClaim, updateClaim, deleteClaim, loadDemoCase, exportClaimsCSV,
 } = require("../controllers/claimController");
 const { analyzeClaim, getAnalysis } = require("../controllers/analysisController");
 const { generateAppeal } = require("../controllers/appealController");
@@ -15,6 +15,7 @@ router.use(requireAuth);
 // (spec section 4 — Reviewer can view/review/approve but not originate work).
 router.post("/demo", requireRole("admin"), loadDemoCase);
 router.post("/upload", requireRole("admin"), upload.single("file"), uploadClaim);
+router.get("/export/csv", exportClaimsCSV);
 
 router.post("/", requireRole("admin"), createClaim);
 router.get("/", listClaims);

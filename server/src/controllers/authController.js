@@ -196,4 +196,61 @@ const changePassword = asyncHandler(async (req, res) => {
   res.json({ success: true, message: "Password updated successfully." });
 });
 
-module.exports = { register, login, me, updateProfile, googleStart, googleCallback, changePassword };
+const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(422).json({ success: false, error: "Email is required." });
+  }
+  const user = await User.findOne({ email: email.toLowerCase() });
+  if (!user) {
+    // Don't reveal whether the email exists
+    return res.json({ success: true, message: "If that email is registered, a reset link has been generated. Check the server console." });
+  }
+
+  const resetToken = crypto.randomBytes(32).toString("hex");
+  user.resetPasswordToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+  user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+  await user.save();
+
+  // In a real app, send this via email. For this prototype, log to console.
+  console.log(`\n==== PASSWORD RESET TOKEN ====`);
+  console.log(`Email: ${user.email}`);
+  console.log(`Token: ${resetToken}`);
+  console.log(`Expires: ${user.resetPasswordExpires.toISOString()}`);
+  console.log(`==============================\n`);
+
+  await logAudit({ req: { ...req, user: { id: user._id, name: user.name } }, action: "PASSWORD_RESET_REQUESTED", resource: "User", resourceId: user._id.toString() });
+  res.json({ success: true, message: "If that email is registered, a reset link has been generated. Check the server console." });
+});
+
+const resetPassword = asyncHandler(async (req, res) => {
+  const { token, newPassword } = req.body;
+  if (!token || !newPassword) {
+    return res.status(422).json({ success: false, error: "Token and new password are required." });
+  }
+  if (newPassword.length < 8) {
+    return res.status(422).json({ success: false, error: "New password must be at least 8 characters long." });
+  }
+
+  const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+  const user = await User.findOne({
+    resetPasswordToken: hashedToken,
+    resetPasswordExpires: { $gt: Date.now() },
+  });
+
+  if (!user) {
+    return res.status(400).json({ success: false, error: "Invalid or expired reset token." });
+  }
+
+  user.passwordHash = await bcrypt.hash(newPassword, 10);
+  user.resetPasswordToken = null;
+  user.resetPasswordExpires = null;
+  user.loginAttempts = 0;
+  user.lockUntil = null;
+  await user.save();
+
+  await logAudit({ req: { ...req, user: { id: user._id, name: user.name } }, action: "PASSWORD_RESET_COMPLETED", resource: "User", resourceId: user._id.toString() });
+  res.json({ success: true, message: "Password has been reset successfully. You can now log in." });
+});
+
+module.exports = { register, login, me, updateProfile, googleStart, googleCallback, changePassword, forgotPassword, resetPassword };

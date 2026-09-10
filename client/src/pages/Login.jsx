@@ -1,15 +1,20 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShieldCheck, AlertCircle } from "lucide-react";
+import { ShieldCheck, AlertCircle, CheckCircle2, ArrowLeft, KeyRound } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { errorMessage } from "../services/api";
+import api, { errorMessage } from "../services/api";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5001/api";
 
 export default function Login() {
-  const [mode, setMode] = useState("login"); // login | register
+  const [mode, setMode] = useState("login"); // login | register | forgot | reset
   const [form, setForm] = useState({ name: "", email: "admin@claimassist.demo", password: "Demo1234!", role: "admin" });
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [resetToken, setResetToken] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [infoMessage, setInfoMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { login, register, completeOAuth } = useAuth();
@@ -33,14 +38,30 @@ export default function Login() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+    setInfoMessage("");
     setLoading(true);
     try {
       if (mode === "login") {
         await login(form.email, form.password);
-      } else {
+        navigate("/dashboard");
+      } else if (mode === "register") {
         await register(form);
+        navigate("/dashboard");
+      } else if (mode === "forgot") {
+        const res = await api.post("/auth/forgot-password", { email: forgotEmail });
+        setInfoMessage(res.data.message || "Reset token generated. Check the server console.");
+        setMode("reset");
+      } else if (mode === "reset") {
+        if (newPassword !== confirmPassword) {
+          throw new Error("Passwords do not match.");
+        }
+        const res = await api.post("/auth/reset-password", { token: resetToken, newPassword });
+        setInfoMessage(res.data.message || "Password reset successful! Please log in.");
+        setMode("login");
+        setResetToken("");
+        setNewPassword("");
+        setConfirmPassword("");
       }
-      navigate("/dashboard");
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -63,11 +84,33 @@ export default function Login() {
         </div>
 
         <div className="card p-6 shadow-lg">
-          <h1 className="text-lg font-display font-semibold text-ink-900 mb-1">
-            {mode === "login" ? "Sign in" : "Create an account"}
-          </h1>
+          <div className="flex items-center justify-between mb-1">
+            <h1 className="text-lg font-display font-semibold text-ink-900">
+              {mode === "login" && "Sign in"}
+              {mode === "register" && "Create an account"}
+              {mode === "forgot" && "Forgot Password"}
+              {mode === "reset" && "Reset Password"}
+            </h1>
+            {mode !== "login" && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("login");
+                  setError("");
+                  setInfoMessage("");
+                }}
+                className="text-xs text-brand-600 hover:underline flex items-center gap-1"
+              >
+                <ArrowLeft size={12} /> Back to Sign In
+              </button>
+            )}
+          </div>
+
           <p className="text-sm text-ink-500 mb-5">
-            Demo credentials are pre-filled — just hit Sign In.
+            {mode === "login" && "Demo credentials are pre-filled — just hit Sign In."}
+            {mode === "register" && "Fill in details to create a prototype account."}
+            {mode === "forgot" && "Enter your email to generate a password reset token."}
+            {mode === "reset" && "Enter the token from the server console and your new password."}
           </p>
 
           <AnimatePresence>
@@ -80,6 +123,17 @@ export default function Login() {
               >
                 <AlertCircle size={15} className="mt-0.5 shrink-0" />
                 {error}
+              </motion.div>
+            )}
+            {infoMessage && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mb-4 flex items-start gap-2 text-sm text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 overflow-hidden"
+              >
+                <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-emerald-600" />
+                {infoMessage}
               </motion.div>
             )}
           </AnimatePresence>
@@ -96,26 +150,101 @@ export default function Login() {
                 />
               </div>
             )}
-            <div>
-              <label className="label">Email</label>
-              <input
-                type="email"
-                className="input"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                required
-              />
-            </div>
-            <div>
-              <label className="label">Password</label>
-              <input
-                type="password"
-                className="input"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                required
-              />
-            </div>
+
+            {(mode === "login" || mode === "register") && (
+              <div>
+                <label className="label">Email</label>
+                <input
+                  type="email"
+                  className="input"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  required
+                />
+              </div>
+            )}
+
+            {(mode === "login" || mode === "register") && (
+              <div>
+                <div className="flex items-center justify-between">
+                  <label className="label">Password</label>
+                  {mode === "login" && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForgotEmail(form.email);
+                        setMode("forgot");
+                        setError("");
+                        setInfoMessage("");
+                      }}
+                      className="text-xs text-brand-600 hover:underline mb-1"
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="password"
+                  className="input"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  required
+                />
+              </div>
+            )}
+
+            {mode === "forgot" && (
+              <div>
+                <label className="label">Account Email</label>
+                <input
+                  type="email"
+                  className="input"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  placeholder="name@example.com"
+                  required
+                />
+              </div>
+            )}
+
+            {mode === "reset" && (
+              <>
+                <div>
+                  <label className="label">Reset Token (from Server Console)</label>
+                  <input
+                    type="text"
+                    className="input font-mono text-xs"
+                    value={resetToken}
+                    onChange={(e) => setResetToken(e.target.value.trim())}
+                    placeholder="Paste reset token here"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="label">New Password</label>
+                  <input
+                    type="password"
+                    className="input"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="At least 8 characters"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="label">Confirm New Password</label>
+                  <input
+                    type="password"
+                    className="input"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm new password"
+                    required
+                  />
+                </div>
+              </>
+            )}
+
             {mode === "register" && (
               <div>
                 <label className="label">Role</label>
@@ -129,8 +258,19 @@ export default function Login() {
                 </select>
               </div>
             )}
+
             <motion.button whileTap={{ scale: 0.98 }} type="submit" disabled={loading} className="btn-primary w-full">
-              {loading ? "Please wait…" : mode === "login" ? "Sign In" : "Create Account"}
+              {loading ? (
+                "Please wait…"
+              ) : mode === "login" ? (
+                "Sign In"
+              ) : mode === "register" ? (
+                "Create Account"
+              ) : mode === "forgot" ? (
+                "Send Reset Link"
+              ) : (
+                "Reset Password"
+              )}
             </motion.button>
           </form>
 
@@ -150,9 +290,9 @@ export default function Login() {
           <p className="text-sm text-ink-500 text-center mt-5">
             {mode === "login" ? (
               <>Need an account? <button className="text-brand-600 font-medium hover:underline" onClick={() => setMode("register")}>Register</button></>
-            ) : (
+            ) : mode === "register" ? (
               <>Already have an account? <button className="text-brand-600 font-medium hover:underline" onClick={() => setMode("login")}>Sign in</button></>
-            )}
+            ) : null}
           </p>
         </div>
         <p className="text-center text-xs text-ink-400 mt-5">
@@ -162,3 +302,4 @@ export default function Login() {
     </div>
   );
 }
+

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, Eye, Sparkles, FileSearch, AlertCircle, FileText, X, Trash2 } from "lucide-react";
+import { Upload, Eye, Sparkles, FileSearch, AlertCircle, FileText, X, Trash2, Download, Loader2 } from "lucide-react";
 import DashboardLayout from "../layouts/DashboardLayout";
 import StatusBadge from "../components/StatusBadge";
 import SearchFilter from "../components/SearchFilter";
@@ -33,6 +33,7 @@ export default function Claims() {
 
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [pendingFile, setPendingFile] = useState(null);
 
@@ -66,6 +67,34 @@ export default function Claims() {
   useEffect(() => {
     loadClaims(1, pagination.limit);
   }, [loadClaims, pagination.limit]);
+
+  async function handleExportCSV() {
+    setExporting(true);
+    try {
+      const params = {};
+      if (searchQuery) params.search = searchQuery;
+      if (statusFilter) params.status = statusFilter;
+
+      const res = await api.get("/claims/export/csv", {
+        params,
+        responseType: "blob",
+      });
+
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: "text/csv" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "claims-export.csv");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("Claims exported to CSV successfully.");
+    } catch (err) {
+      toast.error("Failed to export claims: " + errorMessage(err));
+    } finally {
+      setExporting(false);
+    }
+  }
 
   async function handleUpload(file) {
     if (!file) return;
@@ -182,20 +211,34 @@ export default function Claims() {
         </div>
       )}
 
-      <SearchFilter
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        statusFilter={statusFilter}
-        onStatusChange={setStatusFilter}
-        appealabilityFilter={appealabilityFilter}
-        onAppealabilityChange={setAppealabilityFilter}
-        statusOptions={STATUS_OPTIONS}
-        onClear={() => {
-          setSearchQuery("");
-          setStatusFilter("");
-          setAppealabilityFilter("");
-        }}
-      />
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-4">
+        <div className="flex-1">
+          <SearchFilter
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            statusFilter={statusFilter}
+            onStatusChange={setStatusFilter}
+            appealabilityFilter={appealabilityFilter}
+            onAppealabilityChange={setAppealabilityFilter}
+            statusOptions={STATUS_OPTIONS}
+            onClear={() => {
+              setSearchQuery("");
+              setStatusFilter("");
+              setAppealabilityFilter("");
+            }}
+          />
+        </div>
+        <button
+          onClick={handleExportCSV}
+          disabled={exporting}
+          className="btn-secondary text-xs h-10 px-3 flex items-center justify-center gap-1.5 shrink-0 self-start sm:self-center"
+          title="Export current filtered claims to CSV"
+        >
+          {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+          <span>{exporting ? "Exporting…" : "Export CSV"}</span>
+        </button>
+      </div>
+
 
       <div className="card overflow-hidden">
         <table className="w-full text-sm">

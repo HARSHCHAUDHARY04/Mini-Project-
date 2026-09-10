@@ -16,16 +16,16 @@ logger = logging.getLogger("claimassist.claim_parser")
 
 FIELD_PATTERNS = {
     "claimId": r"claim\s*id\s*[:\-]?\s*([A-Za-z0-9\-]+)",
-    "payer": r"payer\s*[:\-]?\s*(.+)",
-    "procedure": r"procedure\s*[:\-]?\s*(?!code)(.+)",
+    "payer": r"payer\s*[:\-]?\s*([^\n\r]+)",
+    "procedure": r"procedure\s*[:\-]?\s*(?!code)([^\n\r]+)",
     "procedureCode": r"procedure\s*code\s*[:\-]?\s*([A-Za-z0-9 ]+)",
-    "diagnosisCode": r"diagnosis\s*code\s*[:\-]?\s*([A-Za-z0-9.\s]+)",
+    "diagnosisCode": r"diagnosis\s*code\s*[:\-]?\s*([A-Za-z0-9. ]+)",
     "denialCode": r"denial\s*code\s*[:\-]?\s*([A-Za-z0-9\-]+)",
-    "denialReason": r"denial\s*reason\s*[:\-]?\s*(.+)",
+    "denialReason": r"denial\s*reason\s*[:\-]?\s*([^\n\r]+)",
     "amount": r"(?:billed\s*amount|amount)\s*[:\-]?\s*\$?\s*([\d,]+\.?\d*)",
     "dateOfService": r"date\s*of\s*service\s*[:\-]?\s*([\d]{4}-[\d]{2}-[\d]{2}|[\d]{1,2}/[\d]{1,2}/[\d]{2,4})",
-    "provider": r"provider\s*[:\-]?\s*(.+)",
-    "patientName": r"patient\s*name\s*[:\-]?\s*(.+)",
+    "provider": r"provider\s*[:\-]?\s*([^\n\r]+)",
+    "patientName": r"patient\s*name\s*[:\-]?\s*([^\n\r]+)",
     "patientId": r"patient\s*id\s*[:\-]?\s*([A-Za-z0-9\-]+)",
 }
 
@@ -69,7 +69,24 @@ Respond ONLY with valid JSON. Do not include markdown code block formatting."""
         system_prompt = "You are a medical claim data extractor. Extract JSON data strictly from document text."
         raw_response = provider.complete(system_prompt=system_prompt, user_prompt=prompt)
         cleaned = raw_response.strip().replace("```json", "").replace("```", "").strip()
-        data = json.loads(cleaned)
+
+        data = {}
+        try:
+            data = json.loads(cleaned)
+        except Exception:
+            # Heuristic regex extraction on unformatted natural language text when LLM is mocked
+            claim_id_m = re.search(r"\b(CLM-[A-Za-z0-9\-]+)\b", text, re.IGNORECASE)
+            amount_m = re.search(r"\$\s*([\d,]+\.?\d*)", text)
+            denial_m = re.search(r"\b(CO-\d+|PR-\d+|OA-\d+|PI-\d+)\b", text, re.IGNORECASE)
+            if claim_id_m:
+                data["claimId"] = claim_id_m.group(1)
+            if amount_m:
+                try:
+                    data["amount"] = float(amount_m.group(1).replace(",", ""))
+                except ValueError:
+                    pass
+            if denial_m:
+                data["denialCode"] = denial_m.group(1)
 
         # Merge extracted fields for any None fields in current_result
         for k, v in data.items():
@@ -88,6 +105,7 @@ Respond ONLY with valid JSON. Do not include markdown code block formatting."""
         logger.warning("LLM NLP extraction fallback skipped: %s", err)
 
     return current_result
+
 
 
 def parse_claim_text(text: str) -> dict:

@@ -105,6 +105,8 @@ const updateAppeal = asyncHandler(async (req, res) => {
   res.json({ success: true, data: appeal });
 });
 
+const Notification = require("../models/Notification");
+
 const approveAppeal = asyncHandler(async (req, res) => {
   const { action } = req.body; // "approve" | "reject"
   const status = action === "reject" ? "REJECTED" : "APPROVED";
@@ -116,7 +118,19 @@ const approveAppeal = asyncHandler(async (req, res) => {
   );
   if (!appeal) return res.status(404).json({ success: false, error: "Appeal not found." });
 
-  await Claim.findOneAndUpdate({ claimId: appeal.claimId }, { status });
+  const claim = await Claim.findOneAndUpdate({ claimId: appeal.claimId }, { status });
+  if (claim && claim.uploadedBy) {
+    try {
+      await Notification.create({
+        userId: claim.uploadedBy,
+        message: `Appeal for claim ${claim.claimId} was ${status.toLowerCase()} by reviewer.`,
+        type: status === "APPROVED" ? "success" : "warning",
+        link: `/claims/${claim.claimId}`,
+      });
+    } catch (e) {
+      console.error("Failed to create notification:", e.message);
+    }
+  }
 
   await logAudit({ req, action: `APPEAL_${status}`, resource: "Appeal", resourceId: appeal._id.toString() });
   res.json({ success: true, data: appeal });

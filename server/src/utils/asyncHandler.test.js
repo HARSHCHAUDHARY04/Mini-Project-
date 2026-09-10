@@ -1,9 +1,10 @@
+import { describe, it, expect, vi } from "vitest";
 const asyncHandler = require("./asyncHandler");
 
 describe("asyncHandler", () => {
   it("should wrap an async function and execute it", async () => {
-    const fn = jest.fn().mockResolvedValue("success");
-    const next = jest.fn();
+    const fn = vi.fn().mockResolvedValue("success");
+    const next = vi.fn();
     const req = {};
     const res = {};
 
@@ -16,8 +17,8 @@ describe("asyncHandler", () => {
 
   it("should catch errors and pass them to next", async () => {
     const error = new Error("Async failure");
-    const fn = jest.fn().mockRejectedValue(error);
-    const next = jest.fn();
+    const fn = vi.fn().mockRejectedValue(error);
+    const next = vi.fn();
     const req = {};
     const res = {};
 
@@ -28,3 +29,4 @@ describe("asyncHandler", () => {
     expect(next).toHaveBeenCalledWith(error);
   });
 });
+

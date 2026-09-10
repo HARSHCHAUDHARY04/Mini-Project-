@@ -10,6 +10,8 @@ const UserSchema = new mongoose.Schema(
     avatar: { type: String, default: "" },
     loginAttempts: { type: Number, default: 0 },
     lockUntil: { type: Date, default: null },
+    resetPasswordToken: { type: String, default: null },
+    resetPasswordExpires: { type: Date, default: null },
   },
   { timestamps: true }
 );

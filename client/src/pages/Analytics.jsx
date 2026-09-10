@@ -6,16 +6,37 @@ import { SkeletonStatCard, SkeletonCard } from "../components/Skeletons";
 import { ChartCard, DenialCodeDistributionChart, RecoveryByMonthChart, AppealsOverTimeChart, ClaimsByStatusChart } from "../components/charts/ChartComponents";
 import api, { errorMessage } from "../services/api";
 import { useToast } from "../context/ToastContext";
-import { DollarSign, TrendingUp, FileCheck2, CheckCircle2 } from "lucide-react";
+import { DollarSign, TrendingUp, FileCheck2, CheckCircle2, Download, Loader2 } from "lucide-react";
 
 export default function Analytics() {
   const [stats, setStats] = useState(null);
+  const [exporting, setExporting] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
     api.get("/dashboard/stats").then((res) => setStats(res.data.data)).catch((err) => toast.error(errorMessage(err)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function handleExportCSV() {
+    setExporting(true);
+    try {
+      const res = await api.get("/dashboard/export/csv", { responseType: "blob" });
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: "text/csv" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "analytics-summary.csv");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("Analytics summary exported to CSV.");
+    } catch (err) {
+      toast.error("Export failed: " + errorMessage(err));
+    } finally {
+      setExporting(false);
+    }
+  }
 
   if (!stats) {
     return (
@@ -34,6 +55,21 @@ export default function Analytics() {
 
   return (
     <DashboardLayout title="Analytics">
+      <div className="flex items-center justify-between gap-4 mb-5">
+        <p className="text-sm text-ink-500 dark:text-slate-400">
+          Executive recovery metrics, denial distributions, and workflow throughput.
+        </p>
+        <button
+          onClick={handleExportCSV}
+          disabled={exporting}
+          className="btn-secondary text-xs flex items-center gap-1.5"
+          title="Export analytics summary to CSV"
+        >
+          {exporting ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+          {exporting ? "Exporting…" : "Export Summary (CSV)"}
+        </button>
+      </div>
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard label="Total Denied Amount Tracked" value={stats.potentialRecovery} prefix="$" icon={DollarSign} accent="red" />
         <StatCard label="Potentially Recoverable" value={stats.potentialRecovery} prefix="$" icon={TrendingUp} accent="green" />
@@ -60,3 +96,4 @@ export default function Analytics() {
 function Empty() {
   return <div className="h-full flex items-center justify-center text-sm text-ink-400">No data yet.</div>;
 }
+
