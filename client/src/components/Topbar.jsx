@@ -1,16 +1,98 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Search, Bell, LogOut, Menu, CheckCheck, Info, CheckCircle2, AlertTriangle, ExternalLink } from "lucide-react";
+import { Search, Bell, LogOut, Menu, CheckCheck, Info, CheckCircle2, AlertTriangle, ExternalLink, Loader2, FileText } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useDebounce } from "../hooks/useDebounce";
+import StatusBadge from "./StatusBadge";
 import api from "../services/api";
 
 export default function Topbar({ title, onMenuToggle }) {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
+
+  const [query, setQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const searchRef = useRef(null);
+  const debouncedQuery = useDebounce(query, 300);
+
+  useEffect(() => {
+    const q = debouncedQuery.trim();
+    if (q.length < 2) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+    let cancelled = false;
+    setSearching(true);
+    api
+      .get(`/claims?q=${encodeURIComponent(q)}&limit=6`)
+      .then((res) => {
+        if (!cancelled) setSearchResults(res.data.data || []);
+      })
+      .catch(() => {
+        if (!cancelled) setSearchResults([]);
+      })
+      .finally(() => {
+        if (!cancelled) setSearching(false);
+      });
+    return () => { cancelled = true; };
+  }, [debouncedQuery]);
+
+  useEffect(() => {
+    setActiveIndex(-1);
+  }, [searchResults]);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (searchRef.current && !searchRef.current.contains(e.target)) {
+        setSearchOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  function goToClaim(claimId) {
+    setSearchOpen(false);
+    setQuery("");
+    navigate(`/claims/${claimId}`);
+  }
+
+  function goToAllResults() {
+    if (!query.trim()) return;
+    setSearchOpen(false);
+    navigate(`/claims?q=${encodeURIComponent(query.trim())}`);
+  }
+
+  function handleSearchKeyDown(e) {
+    if (e.key === "Escape") {
+      setSearchOpen(false);
+      e.currentTarget.blur();
+      return;
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((i) => Math.min(i + 1, searchResults.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((i) => Math.max(i - 1, -1));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (activeIndex >= 0 && searchResults[activeIndex]) {
+        goToClaim(searchResults[activeIndex].claimId);
+      } else {
+        goToAllResults();
+      }
+    }
+  }
 
   async function fetchNotifications() {
     try {
@@ -88,12 +170,66 @@ export default function Topbar({ title, onMenuToggle }) {
       </div>
 
       <div className="flex items-center gap-4">
-        <div className="hidden sm:flex items-center gap-2 bg-surface-muted dark:bg-slate-800 rounded-lg px-3 py-1.5 w-64 transition-all focus-within:ring-2 focus-within:ring-brand-500 focus-within:bg-white dark:focus-within:bg-slate-800">
-          <Search size={15} className="text-ink-400 dark:text-slate-500" />
-          <input
-            placeholder="Search claims, policies…"
-            className="bg-transparent text-sm outline-none w-full placeholder:text-ink-400 dark:placeholder:text-slate-500 text-ink-900 dark:text-slate-100"
-          />
+        <div className="relative hidden sm:block" ref={searchRef}>
+          <div className="flex items-center gap-2 bg-surface-muted dark:bg-slate-800 rounded-lg px-3 py-1.5 w-64 transition-all focus-within:ring-2 focus-within:ring-brand-500 focus-within:bg-white dark:focus-within:bg-slate-800">
+            {searching ? (
+              <Loader2 size={15} className="text-ink-400 dark:text-slate-500 animate-spin shrink-0" />
+            ) : (
+              <Search size={15} className="text-ink-400 dark:text-slate-500 shrink-0" />
+            )}
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onFocus={() => setSearchOpen(true)}
+              onKeyDown={handleSearchKeyDown}
+              placeholder="Search claims by ID, patient, payer…"
+              className="bg-transparent text-sm outline-none w-full placeholder:text-ink-400 dark:placeholder:text-slate-500 text-ink-900 dark:text-slate-100"
+            />
+          </div>
+
+          <AnimatePresence>
+            {searchOpen && query.trim().length >= 2 && (
+              <motion.div
+                initial={{ opacity: 0, y: 8, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 8, scale: 0.97 }}
+                transition={{ duration: 0.15 }}
+                className="absolute left-0 mt-2 w-96 rounded-xl bg-white dark:bg-slate-900 border border-surface-border dark:border-slate-800 shadow-2xl overflow-hidden z-50"
+              >
+                {searchResults.length === 0 ? (
+                  <div className="p-6 text-center text-ink-400 dark:text-slate-500 text-xs">
+                    {searching ? "Searching…" : `No claims match "${query.trim()}".`}
+                  </div>
+                ) : (
+                  <div className="max-h-80 overflow-y-auto divide-y divide-surface-border dark:divide-slate-800">
+                    {searchResults.map((c, i) => (
+                      <div
+                        key={c.claimId}
+                        onMouseEnter={() => setActiveIndex(i)}
+                        onClick={() => goToClaim(c.claimId)}
+                        className={`p-3 text-xs cursor-pointer flex items-center gap-2.5 transition-colors ${
+                          activeIndex === i ? "bg-brand-50 dark:bg-brand-950/40" : "hover:bg-surface-muted/60 dark:hover:bg-slate-800/50"
+                        }`}
+                      >
+                        <FileText size={14} className="text-ink-400 dark:text-slate-500 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-ink-900 dark:text-slate-100 font-medium mono truncate">{c.claimId}</p>
+                          <p className="text-ink-400 dark:text-slate-500 truncate">{c.patientName || c.payer}</p>
+                        </div>
+                        <StatusBadge status={c.status} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <button
+                  onClick={goToAllResults}
+                  className="w-full text-left px-3 py-2.5 text-xs font-medium text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950/30 border-t border-surface-border dark:border-slate-800 transition-colors"
+                >
+                  View all results for "{query.trim()}"
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Notification Bell + Dropdown */}

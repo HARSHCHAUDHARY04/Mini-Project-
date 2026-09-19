@@ -19,6 +19,12 @@ const getStats = asyncHandler(async (req, res) => {
   ]);
   const potentialRecovery = potentialRecoveryAgg[0]?.total || 0;
 
+  const totalDeniedAmountAgg = await Claim.aggregate([
+    { $match: { denialCode: { $ne: null } } },
+    { $group: { _id: null, total: { $sum: "$amount" } } },
+  ]);
+  const totalDeniedAmount = totalDeniedAmountAgg[0]?.total || 0;
+
   const claimsByStatus = await Claim.aggregate([
     { $group: { _id: "$status", count: { $sum: 1 } } },
     { $project: { status: "$_id", count: 1, _id: 0 } },
@@ -63,6 +69,7 @@ const getStats = asyncHandler(async (req, res) => {
       appealsApproved,
       appealsPending,
       potentialRecovery,
+      totalDeniedAmount,
       claimsByStatus,
       denialCodeDistribution,
       recoveryByMonth,

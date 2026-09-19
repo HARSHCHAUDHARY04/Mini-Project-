@@ -18,6 +18,19 @@ const REQUIREMENTS = [
   { label: "Physician recommendation on file", status: "MATCH" },
 ];
 
+const STEPS = [
+  { step: "01", title: "Upload the denial", desc: "Drop in the EOB or denial letter — PDF, TXT, CSV, or JSON. Claim fields and denial codes are extracted automatically." },
+  { step: "02", title: "AI scores appealability", desc: "The denial is matched against payer policy and clinical documentation to produce a Strong / Moderate / Weak verdict with cited reasoning." },
+  { step: "03", title: "Review the evidence", desc: "Every requirement is linked to its source — a policy section or a line in the chart — so nothing is taken on faith." },
+  { step: "04", title: "Generate the appeal", desc: "A fully cited draft letter is produced for human review, ready to edit, approve, and send." },
+];
+
+const STATS = [
+  { value: "4", label: "Pipeline stages, start to appeal" },
+  { value: "100%", label: "Citations traced to source" },
+  { value: "0", label: "Facts invented by the model" },
+];
+
 export default function Landing() {
   return (
     <div className="min-h-screen bg-surface-muted dark:bg-slate-950 overflow-x-hidden transition-colors">
@@ -115,6 +128,69 @@ export default function Landing() {
               <p className="mt-1.5 text-sm text-ink-500 dark:text-slate-400 leading-relaxed">{desc}</p>
             </motion.div>
           ))}
+        </div>
+      </section>
+
+      <section className="border-t border-surface-border dark:border-slate-800 bg-white/60 dark:bg-slate-900/40">
+        <div className="max-w-6xl mx-auto px-6 py-20">
+          <div className="max-w-2xl mb-12">
+            <span className="text-xs font-semibold uppercase tracking-wide text-brand-600 dark:text-brand-400">How it works</span>
+            <h2 className="mt-2 text-2xl sm:text-3xl font-display font-bold text-ink-900 dark:text-white tracking-tight">
+              From denial letter to submitted appeal
+            </h2>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {STEPS.map(({ step, title, desc }, i) => (
+              <motion.div
+                key={step}
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-40px" }}
+                transition={{ delay: i * 0.08, duration: 0.4 }}
+                className="relative"
+              >
+                <span className="font-display text-3xl font-bold text-brand-200 dark:text-brand-900/80">{step}</span>
+                <h3 className="mt-2 font-display font-semibold text-ink-900 dark:text-white">{title}</h3>
+                <p className="mt-1.5 text-sm text-ink-500 dark:text-slate-400 leading-relaxed">{desc}</p>
+                {i < STEPS.length - 1 && (
+                  <div className="hidden lg:block absolute top-3 left-full w-6 -translate-x-3 border-t border-dashed border-surface-border dark:border-slate-700" />
+                )}
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="max-w-6xl mx-auto px-6 py-16">
+        <div className="grid sm:grid-cols-3 gap-6 text-center">
+          {STATS.map(({ value, label }) => (
+            <div key={label}>
+              <p className="font-display text-4xl font-bold text-ink-900 dark:text-white">{value}</p>
+              <p className="mt-1.5 text-sm text-ink-500 dark:text-slate-400">{label}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="max-w-6xl mx-auto px-6 pb-20">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand-600 to-brand-800 px-8 py-14 text-center sm:px-16">
+          <div
+            className="absolute inset-0 opacity-30 pointer-events-none"
+            style={{ background: "radial-gradient(circle at top right, rgba(255,255,255,0.25), transparent 60%)" }}
+          />
+          <div className="relative">
+            <h2 className="text-2xl sm:text-3xl font-display font-bold text-white tracking-tight">
+              Ready to see a denial turned into an appeal?
+            </h2>
+            <p className="mt-3 text-brand-100 max-w-xl mx-auto">
+              Sign in with the demo account and walk through the full pipeline on synthetic claims.
+            </p>
+            <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
+              <Link to="/login" className="btn bg-white text-brand-700 hover:bg-brand-50 px-6 py-3 text-base shadow-sm">
+                Sign In to Try It
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
 

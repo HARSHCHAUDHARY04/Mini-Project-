@@ -73,28 +73,34 @@ export default function Dashboard() {
       ) : (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <StatCard label="Total Claims" value={stats.totalClaims} icon={FileText} accent="brand" />
-            <StatCard label="Claims Denied" value={stats.deniedClaims} icon={AlertTriangle} accent="red" />
-            <StatCard label="Potentially Appealable" value={stats.appealableClaims} icon={TrendingUp} accent="green" />
-            <StatCard label="Appeals Generated" value={stats.appealsGenerated} icon={FileCheck2} accent="violet" />
+            <StatCard label="Total Claims" value={stats.totalClaims} icon={FileText} accent="brand" onClick={() => navigate("/claims")} />
+            <StatCard label="Claims Denied" value={stats.deniedClaims} icon={AlertTriangle} accent="red" onClick={() => navigate("/claims")} />
+            <StatCard label="Potentially Appealable" value={stats.appealableClaims} icon={TrendingUp} accent="green" onClick={() => navigate("/claims?appealability=Strong")} />
+            <StatCard label="Appeals Generated" value={stats.appealsGenerated} icon={FileCheck2} accent="violet" onClick={() => navigate("/appeals")} />
             <StatCard
               label="Potential Recovery"
               value={stats.potentialRecovery}
               prefix="$"
               icon={DollarSign}
               accent="green"
+              onClick={() => navigate("/analytics")}
             />
-            <StatCard label="Appeals Approved" value={stats.appealsApproved} icon={CheckCircle2} accent="green" />
-            <StatCard label="Appeals Pending Review" value={stats.appealsPending} icon={Clock} accent="amber" />
+            <StatCard label="Appeals Approved" value={stats.appealsApproved} icon={CheckCircle2} accent="green" onClick={() => navigate("/appeals?status=APPROVED")} />
+            <StatCard label="Appeals Pending Review" value={stats.appealsPending} icon={Clock} accent="amber" onClick={() => navigate("/appeals?status=UNDER_REVIEW")} />
           </div>
 
           <div className="grid lg:grid-cols-2 gap-5">
             {[
-              { title: "Claims by Status", node: <ClaimsByStatusChart data={stats.claimsByStatus} /> },
+              {
+                title: "Claims by Status",
+                sub: "Click a bar to view those claims",
+                node: <ClaimsByStatusChart data={stats.claimsByStatus} onBarClick={(status) => navigate(`/claims?status=${encodeURIComponent(status)}`)} />,
+              },
               {
                 title: "Denial Codes Distribution",
+                sub: stats.denialCodeDistribution.length ? "Click a slice to view matching claims" : undefined,
                 node: stats.denialCodeDistribution.length ? (
-                  <DenialCodeDistributionChart data={stats.denialCodeDistribution} />
+                  <DenialCodeDistributionChart data={stats.denialCodeDistribution} onSliceClick={(code) => navigate(`/claims?q=${encodeURIComponent(code)}`)} />
                 ) : (
                   <EmptyState />
                 ),

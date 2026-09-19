@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Upload, Eye, Sparkles, FileSearch, AlertCircle, FileText, X, Trash2, Download, Loader2 } from "lucide-react";
 import DashboardLayout from "../layouts/DashboardLayout";
@@ -25,11 +25,12 @@ const STATUS_OPTIONS = [
 ];
 
 export default function Claims() {
+  const [searchParams] = useSearchParams();
   const [claims, setClaims] = useState(null);
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, pages: 1 });
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [appealabilityFilter, setAppealabilityFilter] = useState("");
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get("q") || "");
+  const [statusFilter, setStatusFilter] = useState(() => searchParams.get("status") || "");
+  const [appealabilityFilter, setAppealabilityFilter] = useState(() => searchParams.get("appealability") || "");
 
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -240,8 +241,8 @@ export default function Claims() {
       </div>
 
 
-      <div className="card overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="card overflow-x-auto">
+        <table className="w-full text-sm min-w-[960px]">
           <thead>
             <tr className="border-b border-surface-border dark:border-slate-800 bg-surface-muted dark:bg-slate-800/60 text-left text-xs text-ink-500 dark:text-slate-400 uppercase tracking-wide">
               <th className="px-4 py-3 font-medium">Claim ID</th>
@@ -273,20 +274,21 @@ export default function Claims() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: Math.min(i, 8) * 0.03 }}
-                  className="border-b border-surface-border dark:border-slate-800 last:border-0 hover:bg-surface-muted/60 dark:hover:bg-slate-800/50 transition-colors"
+                  onClick={() => navigate(`/claims/${c.claimId}`)}
+                  className="border-b border-surface-border dark:border-slate-800 last:border-0 hover:bg-surface-muted/60 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
                 >
-                  <td className="px-4 py-3 font-medium text-ink-900 dark:text-slate-100 mono">{c.claimId}</td>
-                  <td className="px-4 py-3 text-ink-700 dark:text-slate-300">{c.patientName || "—"}</td>
-                  <td className="px-4 py-3 text-ink-700 dark:text-slate-300">{c.payer}</td>
-                  <td className="px-4 py-3 text-ink-700 dark:text-slate-300">{c.procedure}</td>
-                  <td className="px-4 py-3 text-ink-700 dark:text-slate-300 mono">{c.denialCode || "—"}</td>
-                  <td className="px-4 py-3 text-ink-700 dark:text-slate-300">${(c.amount || 0).toLocaleString()}</td>
-                  <td className="px-4 py-3"><StatusBadge status={c.status} /></td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 font-medium text-ink-900 dark:text-slate-100 mono whitespace-nowrap">{c.claimId}</td>
+                  <td className="px-4 py-3 text-ink-700 dark:text-slate-300 whitespace-nowrap">{c.patientName || "—"}</td>
+                  <td className="px-4 py-3 text-ink-700 dark:text-slate-300 whitespace-nowrap">{c.payer}</td>
+                  <td className="px-4 py-3 text-ink-700 dark:text-slate-300 max-w-[220px] truncate" title={c.procedure}>{c.procedure}</td>
+                  <td className="px-4 py-3 text-ink-700 dark:text-slate-300 mono whitespace-nowrap">{c.denialCode || "—"}</td>
+                  <td className="px-4 py-3 text-ink-700 dark:text-slate-300 whitespace-nowrap">${(c.amount || 0).toLocaleString()}</td>
+                  <td className="px-4 py-3 whitespace-nowrap"><StatusBadge status={c.status} /></td>
+                  <td className="px-4 py-3 whitespace-nowrap">
                     {c.appealabilityClassification ? <StatusBadge status={c.appealabilityClassification} /> : "—"}
                   </td>
-                  <td className="px-4 py-3 text-ink-500 dark:text-slate-400">{new Date(c.createdAt).toLocaleDateString()}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 text-ink-500 dark:text-slate-400 whitespace-nowrap">{new Date(c.createdAt).toLocaleDateString()}</td>
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
                       <ActionButton title="View" onClick={() => navigate(`/claims/${c.claimId}`)} icon={Eye} />
                       <ActionButton title="Analyze" onClick={() => navigate(`/claims/${c.claimId}?tab=ai-analysis`)} icon={FileSearch} />

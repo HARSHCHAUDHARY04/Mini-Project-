@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import DashboardLayout from "../layouts/DashboardLayout";
 import StatCard from "../components/StatCard";
@@ -12,6 +13,7 @@ export default function Analytics() {
   const [stats, setStats] = useState(null);
   const [exporting, setExporting] = useState(false);
   const toast = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     api.get("/dashboard/stats").then((res) => setStats(res.data.data)).catch((err) => toast.error(errorMessage(err)));
@@ -71,16 +73,26 @@ export default function Analytics() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard label="Total Denied Amount Tracked" value={stats.potentialRecovery} prefix="$" icon={DollarSign} accent="red" />
-        <StatCard label="Potentially Recoverable" value={stats.potentialRecovery} prefix="$" icon={TrendingUp} accent="green" />
-        <StatCard label="Appeals Generated" value={stats.appealsGenerated} icon={FileCheck2} accent="violet" />
-        <StatCard label="Appeals Approved" value={stats.appealsApproved} icon={CheckCircle2} accent="green" />
+        <StatCard label="Total Denied Amount Tracked" value={stats.totalDeniedAmount} prefix="$" icon={DollarSign} accent="red" onClick={() => navigate("/claims")} />
+        <StatCard label="Potentially Recoverable" value={stats.potentialRecovery} prefix="$" icon={TrendingUp} accent="green" onClick={() => navigate("/claims?appealability=Strong")} />
+        <StatCard label="Appeals Generated" value={stats.appealsGenerated} icon={FileCheck2} accent="violet" onClick={() => navigate("/appeals")} />
+        <StatCard label="Appeals Approved" value={stats.appealsApproved} icon={CheckCircle2} accent="green" onClick={() => navigate("/appeals?status=APPROVED")} />
       </div>
 
       <div className="grid lg:grid-cols-2 gap-5">
         {[
-          { title: "Denials by Code", sub: `${totalDenied} total claims tracked`, node: stats.denialCodeDistribution.length ? <DenialCodeDistributionChart data={stats.denialCodeDistribution} /> : <Empty /> },
-          { title: "Claims by Status", node: <ClaimsByStatusChart data={stats.claimsByStatus} /> },
+          {
+            title: "Denials by Code",
+            sub: `${totalDenied} total claims tracked — click a slice to view`,
+            node: stats.denialCodeDistribution.length ? (
+              <DenialCodeDistributionChart data={stats.denialCodeDistribution} onSliceClick={(code) => navigate(`/claims?q=${encodeURIComponent(code)}`)} />
+            ) : <Empty />,
+          },
+          {
+            title: "Claims by Status",
+            sub: "Click a bar to view those claims",
+            node: <ClaimsByStatusChart data={stats.claimsByStatus} onBarClick={(status) => navigate(`/claims?status=${encodeURIComponent(status)}`)} />,
+          },
           { title: "Recovery by Month", node: stats.recoveryByMonth.length ? <RecoveryByMonthChart data={stats.recoveryByMonth} /> : <Empty /> },
           { title: "Appeal Volume Over Time", node: stats.appealsOverTime.length ? <AppealsOverTimeChart data={stats.appealsOverTime} /> : <Empty /> },
         ].map((c, i) => (
