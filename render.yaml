@@ -4,7 +4,7 @@ services:
     runtime: docker
     dockerfilePath: ./ai-service/Dockerfile
     dockerContext: ./ai-service
-    plan: free
+    plan: standard
     healthCheckPath: /health
     envVars:
       - key: LLM_PROVIDER
