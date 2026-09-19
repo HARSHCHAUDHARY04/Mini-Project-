@@ -1,0 +1,14 @@
+FROM node:18-alpine
+
+WORKDIR /app/server
+
+COPY server/package*.json ./
+
+RUN npm install
+
+COPY server/ .
+COPY data/ /app/data/
+
+EXPOSE 5001
+
+CMD ["npm", "start"]
