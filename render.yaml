@@ -1,0 +1,43 @@
+services:
+  - type: web
+    name: claimassist-ai-service
+    runtime: docker
+    dockerfilePath: ./ai-service/Dockerfile
+    dockerContext: ./ai-service
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: LLM_PROVIDER
+        value: mock
+      - key: EMBEDDING_MODEL
+        value: all-MiniLM-L6-v2
+      - key: VECTOR_STORE
+        value: faiss
+      - key: VECTOR_INDEX_DIR
+        value: /app/storage/indexes
+      - key: PACKET_OUTPUT_DIR
+        value: /app/storage/packets
+      - key: ALLOWED_ORIGIN
+        value: https://claimassist-server.onrender.com
+
+  - type: web
+    name: claimassist-server
+    runtime: docker
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: ./server
+    dockerCommand: npm start
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5001
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: AI_SERVICE_URL
+        value: https://claimassist-ai-service.onrender.com
+      - key: CLIENT_ORIGIN
+        value: https://mini-project-tawny-one.vercel.app
