@@ -1,10 +1,11 @@
 """
 PolicyIndexer: splits a policy document into meaningful chunks (respecting
-section boundaries and page markers), embeds each chunk with Sentence
-Transformers, and hands them off to the configured VectorStore backend
-(local FAISS by default, or Qdrant Cloud — see vector_store.py) along with
-metadata (payer, policy name, page number, section, chunk text) so the RAG
-engine can later return citation-ready results.
+section boundaries and page markers), embeds each chunk with fastembed
+(ONNX runtime, no PyTorch — chosen to fit low-memory free-tier hosting),
+and hands them off to the configured VectorStore backend (local FAISS by
+default, or Qdrant Cloud — see vector_store.py) along with metadata (payer,
+policy name, page number, section, chunk text) so the RAG engine can later
+return citation-ready results.
 """
 
 import os
@@ -16,17 +17,33 @@ from app.rag.vector_store import get_vector_store
 
 logger = logging.getLogger("claimassist.indexer")
 
-EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 
 _model = None
+
+
+class _FastEmbedWrapper:
+    """Adapts fastembed's TextEmbedding to the .encode(texts, normalize_embeddings=) shape the rest of the app expects."""
+
+    def __init__(self, model_name: str):
+        from fastembed import TextEmbedding
+        self._model = TextEmbedding(model_name=model_name)
+
+    def encode(self, texts, normalize_embeddings: bool = True):
+        import numpy as np
+        vectors = np.array(list(self._model.embed(texts)), dtype="float32")
+        if normalize_embeddings:
+            norms = np.linalg.norm(vectors, axis=1, keepdims=True)
+            norms[norms == 0] = 1
+            vectors = vectors / norms
+        return vectors
 
 
 def get_embedding_model():
     global _model
     if _model is None:
-        from sentence_transformers import SentenceTransformer
         logger.info("Loading embedding model %s", EMBEDDING_MODEL_NAME)
-        _model = SentenceTransformer(EMBEDDING_MODEL_NAME)
+        _model = _FastEmbedWrapper(EMBEDDING_MODEL_NAME)
     return _model
 
 
